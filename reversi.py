@@ -24,7 +24,7 @@ class Reversi:
         self.cell_size = 22
         self.screen_size = self.board_size * self.cell_size + 40
         pyxel.init(self.screen_size, self.screen_size + 20, title="Reversi", fps=30)
-        pyxel.mouse(True) # マウスカーソルを表示
+        pyxel.mouse(False) # マウスカーソルを非表示
 
         self.game_state = GameState.TITLE
         self.player_color = 0 # 1: 黒, -1: 白 (プレイヤーが選択)
@@ -45,7 +45,7 @@ class Reversi:
         # サウンドの定義
         # 犬が勝った時 (白)
         pyxel.sounds[0].set(
-            notes='g3c4b3a3g3c4b3a3g3f3e3d3c3',
+            notes='g4c4b3a3g4c4b3a3g4f4e4d4c4', # オクターブを調整
             tones='t',
             volumes='4',
             effects='n',
@@ -53,7 +53,7 @@ class Reversi:
         )
         # 猫が勝った時 (黒)
         pyxel.sounds[1].set(
-            notes='c2g2c2g2c2g2c2g2',
+            notes='c4g4c4g4c4g4c4g4', # オクターブを2つ上げる
             tones='s',
             volumes='3',
             effects='n',
@@ -61,7 +61,7 @@ class Reversi:
         )
         # 石がひっくり返る音 (猫: 黒)
         pyxel.sounds[2].set(
-            notes='c2',
+            notes='c4', # オクターfブを2つ上げる
             tones='t',
             volumes='3',
             effects='n',
@@ -69,7 +69,7 @@ class Reversi:
         )
         # 石がひっくり返る音 (犬: 白)
         pyxel.sounds[3].set(
-            notes='g2',
+            notes='g4', # オクターブを2つ上げる
             tones='t',
             volumes='3',
             effects='n',
@@ -77,7 +77,7 @@ class Reversi:
         )
         # 無効な手のエラー音
         pyxel.sounds[4].set(
-            notes='c0',
+            notes='c3', # オクターブを3つ上げる
             tones='p',
             volumes='4',
             effects='n',
