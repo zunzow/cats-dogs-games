@@ -37,6 +37,11 @@ class Reversi:
         self.flip_index = 0       # 現在ひっくり返している石のインデックス
         self.flip_delay = 5       # 各石がひっくり返るまでのフレーム数
 
+        # 勝者アニメーション
+        self.win_animation_timer = 0
+        self.win_animation_count = 0
+        self.show_win_face = False
+
         # サウンドの定義
         # 犬が勝った時 (白)
         pyxel.sounds[0].set(
@@ -127,6 +132,13 @@ class Reversi:
                button_y <= pyxel.mouse_y <= button_y + button_height):
                 self.game_state = GameState.TITLE # タイトル画面に戻る
             if self.game_state == GameState.GAME_OVER:
+                # 勝者アニメーションの更新
+                if self.winner != 0 and self.win_animation_count < 4: # 2回表情を変える (通常→特殊→通常→特殊)
+                    self.win_animation_timer += 1
+                    if self.win_animation_timer > 15: # 0.5秒ごとに表情を切り替え
+                        self.win_animation_timer = 0
+                        self.show_win_face = not self.show_win_face
+                        self.win_animation_count += 1
                 return
 
         if self.game_state == GameState.PLAYING:
@@ -260,6 +272,12 @@ class Reversi:
             self.current_player *= -1
             self.check_game_over()
 
+    def start_win_animation(self):
+        """勝者アニメーションを開始する"""
+        self.win_animation_timer = 0
+        self.win_animation_count = 0
+        self.show_win_face = True # 最初は特殊な顔から
+
     def calculate_winner(self):
         """勝者を計算する"""
         black_stones = sum(row.count(1) for row in self.board)
@@ -268,10 +286,12 @@ class Reversi:
             self.winner = 1
             self.cat_wins += 1
             pyxel.play(0, 1) # 猫が勝ったテーマ
+            self.start_win_animation()
         elif white_stones > black_stones:
             self.winner = -1
             self.dog_wins += 1
             pyxel.play(0, 0) # 犬が勝ったテーマ
+            self.start_win_animation()
         else:
             self.winner = 0
 
@@ -304,10 +324,14 @@ class Reversi:
                 y = offset + r * self.cell_size + self.cell_size // 2
                 radius = self.cell_size // 2 - 3
 
-                if self.board[r][c] == 1:  # 黒い石
-                    self._draw_black_cat(x, y, radius)
-                elif self.board[r][c] == -1:  # 白い石
-                    self._draw_white_dog(x, y, radius)
+                stone_player = self.board[r][c]
+                is_winner_stone = (self.game_state == GameState.GAME_OVER and self.winner == stone_player)
+                show_special_face = is_winner_stone and self.show_win_face
+
+                if stone_player == 1:  # 黒い石
+                    self._draw_black_cat(x, y, radius, show_special_face)
+                elif stone_player == -1:  # 白い石
+                    self._draw_white_dog(x, y, radius, show_special_face)
 
         # ひっくり返るアニメーション中の石を描画
         if self.flipping_stones:
@@ -320,9 +344,9 @@ class Reversi:
                 
                 # ひっくり返った後の色で描画
                 if self.current_player == 1: # 次のプレイヤーが黒なら、ひっくり返った石は黒
-                    self._draw_black_cat(x, y, radius)
+                    self._draw_black_cat(x, y, radius, False)
                 else: # 次のプレイヤーが白なら、ひっくり返った石は白
-                    self._draw_white_dog(x, y, radius)
+                    self._draw_white_dog(x, y, radius, False)
         
         # メッセージを表示
         if self.game_state == GameState.GAME_OVER:
@@ -347,7 +371,7 @@ class Reversi:
             pyxel.text(button_x + 8, button_y + 4, "RESTART", 7) # ボタンのテキスト (白)
 
 
-    def _draw_black_cat(self, x, y, radius):
+    def _draw_black_cat(self, x, y, radius, winning_face=False):
         # 黒猫の顔 (円)
         pyxel.circ(x, y, radius, 0) # 黒
 
@@ -367,7 +391,12 @@ class Reversi:
         pyxel.circ(x - eye_offset_x, y - eye_offset_y, eye_radius, 14) # 目
         pyxel.circ(x + eye_offset_x, y - eye_offset_y, eye_radius, 14) # 目
 
-    def _draw_white_dog(self, x, y, radius):
+        if winning_face:
+            # 口を丸く開ける
+            mouth_radius = radius * 0.3
+            pyxel.circ(x, y + radius * 0.5, mouth_radius, 8) # 赤い口
+
+    def _draw_white_dog(self, x, y, radius, winning_face=False):
         # 白犬の顔 (円)
         pyxel.circ(x, y, radius, 7) # 白
 
@@ -389,6 +418,14 @@ class Reversi:
         pyxel.circ(x - eye_offset_x, y - eye_offset_y, eye_radius, 0) # 目
         pyxel.circ(x + eye_offset_x, y - eye_offset_y, eye_radius, 0) # 目
 
+        if winning_face:
+            # 舌をペロッと出す
+            tongue_x = x
+            tongue_y = y + radius * 0.6 # 舌の位置を少し下げる
+            tongue_w = radius * 0.4
+            tongue_h = radius * 0.6
+            pyxel.rect(tongue_x - tongue_w / 2, tongue_y, tongue_w, tongue_h, 8) # ピンクの舌
+
     def _draw_title_text(self):
         # "Cats + Dogs" を図形で描画
         title_y = 30
@@ -398,7 +435,7 @@ class Reversi:
         # 黒猫の駒を描画
         cat_x = self.screen_size // 2 - 60
         cat_y = title_y
-        self._draw_black_cat(cat_x, cat_y, piece_radius)
+        self._draw_black_cat(cat_x, cat_y, piece_radius, False)
         # 黒猫の勝数を表示
         pyxel.text(cat_x + piece_radius + 5, cat_y, str(self.cat_wins), 7)
 
@@ -411,7 +448,7 @@ class Reversi:
         # 白犬の駒を描画
         dog_x = self.screen_size // 2 + 60
         dog_y = title_y
-        self._draw_white_dog(dog_x, dog_y, piece_radius)
+        self._draw_white_dog(dog_x, dog_y, piece_radius, False)
         # 白犬の勝数を表示
         pyxel.text(dog_x + piece_radius + 5, dog_y, str(self.dog_wins), 7)
 
