@@ -6,9 +6,9 @@ class Dog:
         self.app = app_instance
         self.x = random.uniform(0, pyxel.width)  # Start at random X position
         self.z = 0.0  # Start at the horizon
-        self.is_facing_right = random.choice([True, False])
-        self.horizontal_direction_change_timer = 0
+        self.direction_x = random.choice([-1, 1]) # -1 for left, 1 for right
         self.horizontal_speed = 0.5 # Base horizontal speed
+        self.off_screen = False # Flag to mark if dog is off-screen horizontally
 
     def update(self):
         # Move forward (towards the foreground)
@@ -22,16 +22,12 @@ class Dog:
         else:
             size = 16
 
-        # Horizontal zig-zag movement
-        self.horizontal_direction_change_timer -= 1
-        if self.horizontal_direction_change_timer <= 0:
-            self.is_facing_right = not self.is_facing_right # Flip direction
-            self.horizontal_direction_change_timer = random.randint(30, 90) # Change direction every 0.5 to 1.5 seconds
+        # Horizontal movement
+        self.x += self.horizontal_speed * self.direction_x
 
-        if self.is_facing_right:
-            self.x = min(self.x + self.horizontal_speed, pyxel.width - size / 2)
-        else:
-            self.x = max(self.x - self.horizontal_speed, size / 2)
+        # Check if dog is off-screen horizontally
+        if self.x < -size or self.x > pyxel.width + size:
+            self.off_screen = True
 
     def draw(self):
         # Determine which sprite to use based on Z position
@@ -53,7 +49,7 @@ class Dog:
         sprite_x = anim_frame * 16
 
         # Draw the dog
-        w = size if self.is_facing_right else -size
+        w = size if self.direction_x == 1 else -size
         pyxel.blt(self.x - size / 2, screen_y, 0, sprite_x, sprite_y_offset, w, size, 0)
 
 
@@ -99,7 +95,7 @@ class App:
         dogs_to_keep = []
         for dog in self.dogs:
             dog.update()
-            if dog.z < 1.0: # Keep if not yet at the foreground
+            if dog.z < 1.0 and not dog.off_screen: # Keep if not yet at the foreground and not off-screen
                 dogs_to_keep.append(dog)
         self.dogs = dogs_to_keep
 
