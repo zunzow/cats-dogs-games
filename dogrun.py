@@ -4,113 +4,160 @@ import random
 class Dog:
     def __init__(self, app_instance):
         self.app = app_instance
-        self.x = random.uniform(0, pyxel.width)  # Start at random X position
-        self.z = 0.0  # Start at the horizon
-        self.direction_x = random.choice([-1, 1]) # -1 for left, 1 for right
-        self.horizontal_speed = 0.5 # Base horizontal speed
-        self.off_screen = False # Flag to mark if dog is off-screen horizontally
+        self.x = random.uniform(0, pyxel.width)
+        self.z = 0.0  # Always start at the horizon
+        self.off_screen = False
+        self.screen_y = 0
+        self.size = 0
+
+        # 0: bottom-left, 1: bottom-right
+        self.movement_mode = random.randint(0, 1)
+        self.direction_x = 0
+        self.direction_z = 0
+        self.horizontal_speed = 0.5
+
+    def change_direction(self):
+        """Cycles through the four diagonal movement directions."""
+        self.movement_mode = (self.movement_mode + 1) % 4
 
     def update(self):
-        # Move forward (towards the foreground)
-        self.z = min(self.z + 0.005, 1.0) # Adjust speed as needed
+        # Set direction vectors based on the current mode
+        if self.movement_mode == 0: # bottom-left
+            self.direction_x, self.direction_z = -1, 1
+        elif self.movement_mode == 1: # bottom-right
+            self.direction_x, self.direction_z = 1, 1
+        elif self.movement_mode == 2: # top-right
+            self.direction_x, self.direction_z = 1, -1
+        elif self.movement_mode == 3: # top-left
+            self.direction_x, self.direction_z = -1, -1
+
+        # Update position
+        self.z += 0.005 * self.direction_z
+        self.x += self.horizontal_speed * self.direction_x
 
         # Determine current size based on Z position
         if self.z < 0.33:
-            size = 8
+            self.size = 8
         elif self.z < 0.66:
-            size = 12
+            self.size = 12
         else:
-            size = 16
+            self.size = 16
 
-        # Horizontal movement
-        self.x += self.horizontal_speed * self.direction_x
+        # Calculate screen Y for drawing and click detection
+        self.screen_y = self.app.HORIZON_Y + (self.z * (pyxel.height - self.app.HORIZON_Y - self.size))
 
-        # Check if dog is off-screen horizontally
-        if self.x < -size or self.x > pyxel.width + size:
+        # Check if dog is off-screen
+        if self.x < -self.size or self.x > pyxel.width + self.size or self.z < 0 or self.z > 1:
             self.off_screen = True
 
     def draw(self):
-        # Determine which sprite to use based on Z position
+        # Determine sprite_y_offset based on Z position
         if self.z < 0.33:
-            size = 8
             sprite_y_offset = 32
         elif self.z < 0.66:
-            size = 12
             sprite_y_offset = 16
         else:
-            size = 16
             sprite_y_offset = 0
 
-        # Calculate screen Y position from Z
-        screen_y = self.app.HORIZON_Y + (self.z * (pyxel.height - self.app.HORIZON_Y - size))
-
-        # Animation frame
         anim_frame = (pyxel.frame_count // 8) % 2
-        sprite_x = anim_frame * 16
 
-        # Draw the dog
-        w = size if self.direction_x == 1 else -size
-        pyxel.blt(self.x - size / 2, screen_y, 0, sprite_x, sprite_y_offset, w, size, 0)
+        if self.direction_z == 1:  # Coming (moving towards bottom)
+            sprite_x = anim_frame * 16
+        else:  # Going (moving towards top)
+            sprite_x = 32 + (anim_frame * 16)
 
+        w = self.size if self.direction_x == 1 else -self.size
+        pyxel.blt(self.x - self.size / 2, self.screen_y, 0, sprite_x, sprite_y_offset, w, self.size, 0)
 
 class App:
     def __init__(self):
         pyxel.init(120, 160, title="Dog Run 3D")
         pyxel.load("dogrun.pyxres")
+        pyxel.mouse(False) # Hide mouse cursor
 
-        # Constants
         self.HORIZON_Y = 60
-
-        # List to hold active dogs
         self.dogs = []
-        self.max_dogs = 5 # Target number of dogs on screen
-        self.dog_spawn_timer = 0 # Timer to control dog spawning
+        self.max_dogs = 5
+        self.dog_spawn_timer = 0
 
-        # Create the dithered background at startup
         self.create_dithered_background()
-
         pyxel.run(self.update, self.draw)
 
     def create_dithered_background(self):
-        # Use image bank 2 for the pre-rendered background
-        bg_img = pyxel.image(2)
-        bg_img.cls(0) # Clear it first
+        bg_img = pyxel.images[2]
 
-        # Sky: Dither between light blue (12) and white (7)
-        sky_c1, sky_c2 = 12, 7
-        for y in range(self.HORIZON_Y):
-            for x in range(pyxel.width):
-                color = sky_c1 if (x + y) % 2 == 0 else sky_c2
-                bg_img.pset(x, y, color)
+        sky_base_color = 12
+        sky_dither_color = 7
+        ground_base_color = 3
+        ground_dither_color = 11
 
-        # Ground: Dither between green (3) and a darker green/blue (11)
-        ground_c1, ground_c2 = 3, 11
-        for y in range(self.HORIZON_Y, pyxel.height):
-            for x in range(pyxel.width):
-                color = ground_c1 if (x + y) % 2 == 0 else ground_c2
-                bg_img.pset(x, y, color)
+        # 1. Fill sky and ground with solid base colors
+        bg_img.rect(0, 0, pyxel.width, self.HORIZON_Y, sky_base_color)
+        bg_img.rect(0, self.HORIZON_Y, pyxel.width, pyxel.height - self.HORIZON_Y, ground_base_color)
+
+        # 2. Draw gradients: dense near horizon, sparse further away
+        num_grads = 4
+        grad_height = 6
+
+        # Draw ground and sky gradients in the same loop
+        for i in range(num_grads):
+            # As i (distance from horizon) increases, alpha decreases.
+            # This makes the pattern dense near the horizon and sparse further away.
+            alpha = 1.0 - (i / num_grads)
+            pyxel.dither(alpha)
+
+            # Ground: Draw a band downwards from the horizon
+            y_ground = self.HORIZON_Y + i * grad_height
+            bg_img.rect(0, y_ground, pyxel.width, grad_height, ground_dither_color)
+
+            # Sky: Draw a band upwards from the horizon
+            y_sky = self.HORIZON_Y - (i + 1) * grad_height
+            bg_img.rect(0, y_sky, pyxel.width, grad_height, sky_dither_color)
+
+        # 3. Reset dither to solid to not affect other drawings
+        pyxel.dither(1.0)
 
     def update(self):
-        # Update existing dogs and remove those that are off-screen
+        # --- Collision Detection ---
+        collided_dogs = set()
+        for i in range(len(self.dogs)):
+            for j in range(i + 1, len(self.dogs)):
+                dog1 = self.dogs[i]
+                dog2 = self.dogs[j]
+
+                if abs(dog1.z - dog2.z) < 0.05:
+                    if abs(dog1.x - dog2.x) < (dog1.size + dog2.size) / 2:
+                        if dog1 not in collided_dogs:
+                            dog1.change_direction()
+                            collided_dogs.add(dog1)
+                        if dog2 not in collided_dogs:
+                            dog2.change_direction()
+                            collided_dogs.add(dog2)
+
+        # --- Mouse Click Detection (still active even if cursor is hidden) ---
+        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
+            for dog in sorted(self.dogs, key=lambda d: d.z, reverse=True):
+                if (dog.x - dog.size / 2 <= pyxel.mouse_x < dog.x + dog.size / 2 and
+                        dog.screen_y <= pyxel.mouse_y < dog.screen_y + dog.size):
+                    dog.change_direction()
+                    break
+
+        # --- Update and remove dogs ---
         dogs_to_keep = []
         for dog in self.dogs:
             dog.update()
-            if dog.z < 1.0 and not dog.off_screen: # Keep if not yet at the foreground and not off-screen
+            if not dog.off_screen:
                 dogs_to_keep.append(dog)
         self.dogs = dogs_to_keep
 
-        # Spawn new dogs if needed
+        # --- Spawn new dogs ---
         self.dog_spawn_timer -= 1
         if self.dog_spawn_timer <= 0 and len(self.dogs) < self.max_dogs:
             self.dogs.append(Dog(self))
-            self.dog_spawn_timer = 60 # Spawn a new dog every 1 second (60 frames)
+            self.dog_spawn_timer = 60
 
     def draw(self):
-        # Draw the pre-rendered background
         pyxel.blt(0, 0, 2, 0, 0, pyxel.width, pyxel.height)
-
-        # Draw all active dogs
-        # Sort dogs by Z-position so closer dogs are drawn on top
         self.dogs.sort(key=lambda dog: dog.z)
         for dog in self.dogs:
             dog.draw()
