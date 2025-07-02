@@ -2,16 +2,22 @@ import pyxel
 import random
 
 class Dog:
-    def __init__(self, app_instance):
+    def __init__(self, app_instance, start_at_horizon=True):
         self.app = app_instance
         self.x = random.uniform(0, pyxel.width)
-        self.z = 0.0  # Always start at the horizon
         self.off_screen = False
         self.screen_y = 0
         self.size = 0
 
-        # 0: bottom-left, 1: bottom-right
-        self.movement_mode = random.randint(0, 1)
+        if start_at_horizon:
+            self.z = 0.0  # Start at the horizon
+            # 0: bottom-left, 1: bottom-right (coming towards viewer)
+            self.movement_mode = random.randint(0, 1)
+        else:
+            self.z = random.uniform(0.8, 1.0) # Start at the foreground
+            # 2: top-right, 3: top-left (going away from viewer)
+            self.movement_mode = random.randint(2, 3)
+
         self.direction_x = 0
         self.direction_z = 0
         self.horizontal_speed = 0.5
@@ -77,7 +83,7 @@ class App:
 
         self.HORIZON_Y = 60
         self.dogs = []
-        self.max_dogs = 5
+        self.max_dogs = 10
         self.dog_spawn_timer = 0
 
         self.create_dithered_background()
@@ -153,7 +159,7 @@ class App:
         # --- Spawn new dogs ---
         self.dog_spawn_timer -= 1
         if self.dog_spawn_timer <= 0 and len(self.dogs) < self.max_dogs:
-            self.dogs.append(Dog(self))
+            self.dogs.append(Dog(self, random.choice([True, False])))
             self.dog_spawn_timer = 60
 
     def draw(self):
