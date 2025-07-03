@@ -99,7 +99,7 @@ class App:
         self.max_dogs = 10
         self.dog_spawn_timer = 0
         self.bones = []
-        self.max_bones = 9
+        self.max_bones = 3
         self.create_dithered_background()
         pyxel.run(self.update, self.draw)
 
@@ -142,14 +142,14 @@ class App:
                     bone_clicked = True
                     break # Only remove one bone per click
 
-            if not bone_clicked and len(self.bones) < self.max_bones and my >= self.HORIZON_Y:
-                # Place a new bone if max_bones not reached, no bone was clicked, and click is on grass
-                self.bones.append(Bone(mx - 2, my - 1)) # Adjust for bone center
-
             # Dog click logic (still applies)
             for dog in sorted(self.dogs, key=lambda d: d.z, reverse=True):
                 if (dog.x - dog.size / 2 <= mx < dog.x + dog.size / 2 and dog.screen_y <= my < dog.screen_y + dog.size):
                     dog.change_direction(); break
+            
+            # Place a new bone if max_bones not reached, no bone was clicked, and click is on grass
+            if not bone_clicked and len(self.bones) < self.max_bones and my >= self.HORIZON_Y and not any(dog.x - dog.size / 2 <= mx < dog.x + dog.size / 2 and dog.screen_y <= my < dog.screen_y + dog.size for dog in self.dogs):
+                self.bones.append(Bone(mx - 2, my - 1)) # Adjust for bone center
 
         # --- Update states and remove off-screen dogs ---
         for dog in self.dogs: dog.update()
