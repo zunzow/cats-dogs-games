@@ -83,7 +83,7 @@ class App:
 
         self.HORIZON_Y = 60
         self.dogs = []
-        self.max_dogs = 10
+        self.max_dogs = 20
         self.dog_spawn_timer = 0
 
         self.create_dithered_background()
