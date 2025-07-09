@@ -17,6 +17,7 @@ class App:
         pyxel.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="15 Puzzle", fps=30)
         pyxel.load("fifteen_puzzle.pyxres")
         pyxel.mouse(False)
+        self.image_bank = 0 # 使用する画像バンク
         self.reset()
         pyxel.run(self.update, self.draw)
 
@@ -33,6 +34,7 @@ class App:
 
     def reset(self):
         """ゲームの状態を初期化する"""
+        self.image_bank = random.randint(0, 2) # IMAGE 0, 1, 2 からランダムに選択
         self.is_cleared = False
         self.restart_sequence_count = 0
         
@@ -119,8 +121,8 @@ class App:
                     tile_index = tile_num - 1 # 0-15
                     u = (tile_index % TILES_PER_ROW) * TILE_SIZE
                     v = (tile_index // TILES_PER_ROW) * TILE_SIZE
-                    # 画像を描画
-                    pyxel.blt(draw_x, draw_y, 0, u, v, TILE_SIZE, TILE_SIZE, 0)
+                    # 画像を描画 (ランダムに選択された画像バンクを使用)
+                    pyxel.blt(draw_x, draw_y, self.image_bank, u, v, TILE_SIZE, TILE_SIZE, 0)
                     
                     # 画像の上に白い文字で数字を右下に描画
                     num_str = str(tile_num)
@@ -141,7 +143,7 @@ class App:
             tile_index = BOARD_SIZE * BOARD_SIZE - 1 # 15
             u = (tile_index % TILES_PER_ROW) * TILE_SIZE
             v = (tile_index // TILES_PER_ROW) * TILE_SIZE
-            pyxel.blt(draw_x, draw_y, 0, u, v, TILE_SIZE, TILE_SIZE, 0)
+            pyxel.blt(draw_x, draw_y, self.image_bank, u, v, TILE_SIZE, TILE_SIZE, 0)
 
             # リスタート指示文を盤面の上部中央に配置
             restart_msg = "TAP 1-15 IN ORDER TO RESTART"
