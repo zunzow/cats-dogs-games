@@ -404,30 +404,33 @@ class App:
                 for px, py in pip_positions:
                     pyxel.blt(px, py, 0, u_small, v_small, w_small, h_small, 7)
             else: # A, J, Q, K
-                w_face, h_face = 8, 8 # Face card image dimensions
+                w_face, h_face = 0, 0
                 u_face, v_face = 0, 0 # Initialize face card UV
 
                 if card.rank == Rank.ACE:
                     # Draw large suit icon in the center for Ace
+                    w_face, h_face = 8, 8
                     u_face = u_large
                     v_face = v_large
-                elif card.rank == Rank.KING:
-                    v_face = 16 # King row
-                elif card.rank == Rank.QUEEN:
-                    v_face = 24 # Queen row
-                elif card.rank == Rank.JACK:
-                    v_face = 32 # Jack row
-                
-                # Determine u_face based on suit for J, Q, K
-                if card.rank != Rank.ACE: # Only for J, Q, K
+                else: # J, Q, K
+                    w_face, h_face = 16, 16 # Face card image dimensions
+                    # Set v_face based on rank
+                    if card.rank == Rank.KING:
+                        v_face = 40
+                    elif card.rank == Rank.QUEEN:
+                        v_face = 56
+                    elif card.rank == Rank.JACK:
+                        v_face = 72
+                    
+                    # Set u_face based on suit
                     if card.suit == Suit.BLACK: # Spade
-                        u_face = 8
+                        u_face = 0
                     elif card.suit == Suit.RED: # Heart
                         u_face = 16
                     elif card.suit == Suit.BLUE: # Clover
-                        u_face = 24
-                    elif card.suit == Suit.GREEN: # Diamond
                         u_face = 32
+                    elif card.suit == Suit.GREEN: # Diamond
+                        u_face = 48
 
                 pyxel.blt(x + (self.card_w - w_face) // 2, y + (self.card_h - h_face) // 2, 0, u_face, v_face, w_face, h_face, 7)
         else:
